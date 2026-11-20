@@ -1,0 +1,43 @@
+name: Make clips
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "YouTube link"
+        required: true
+      clips:
+        description: "Number of clips (6-10)"
+        default: "8"
+      mode:
+        description: "crop = fill screen, blur = full frame on blurred bg"
+        type: choice
+        options: [crop, blur]
+        default: crop
+
+jobs:
+  clip:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: pip install -r requirements.txt
+      - name: Generate clips
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
+          URL: ${{ inputs.url }}
+          CLIPS: ${{ inputs.clips }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          COOK=""
+          if [ -n "$YT_COOKIES" ]; then echo "$YT_COOKIES" > cookies.txt; COOK="--cookies cookies.txt"; fi
+          python clipper.py "$URL" -n "$CLIPS" --mode "$MODE" $COOK
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clips
+          path: output/*/clips/*
